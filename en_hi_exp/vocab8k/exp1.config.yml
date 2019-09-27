@@ -1,5 +1,5 @@
-source_lang: src_lang
-target_lang: tgt_lang
+source_lang: "en"
+target_lang: "hi"
 reset_lr_scheduler: True
 arch: "transformer"
 encoder_layers: 6

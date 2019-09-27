@@ -13,21 +13,32 @@ from local_utils.spm_utils import spm_train, spm_encoder, spm_decoder
 
 def preprocess_data(src_lang, tgt_lang, traindir=None, validdir=None,
                     testdir=None, spm_dir="spm_dir", src_vocab_size=8000, tgt_vocab_size=8000,
-                    processed_bin="processed", spm_src_train_data=None, spm_tgt_train_data=None):
+                    processed_bin="processed", spm_src_train_data=None, spm_tgt_train_data=None,
+                    encoded_data_dir="tokenized_data"):
     """
     Preprocess data
     """
 
-    data_dirs = []
-    if traindir:
-        data_dirs.append(("train", traindir))
-    if validdir:
-        data_dirs.append(("valid", validdir))
-    if testdir:
-        data_dirs.append(("test", testdir))
-
     # Check if sentencepiece model dir exists
     base_dir = pathlib.Path(__file__).stem
+
+    fseq_train_path = None
+    fseq_valid_path = None
+    fseq_test_path = None
+
+    data_dirs = []
+    if traindir:
+        data_dirs.append(("train", traindir, os.path.join(
+            base_dir, encoded_data_dir, "train")))
+        fseq_train_path = data_dirs[-1][2]
+    if validdir:
+        data_dirs.append(("valid", validdir, os.path.join(
+            base_dir, encoded_data_dir, "valid")))
+        fseq_valid_path = data_dirs[-1][2]
+    if testdir:
+        data_dirs.append(("test", testdir, os.path.join(
+            base_dir, encoded_data_dir, "test")))
+        fseq_test_path = data_dirs[-1][2]
 
     def init_spm_models():
         """
@@ -56,27 +67,33 @@ def preprocess_data(src_lang, tgt_lang, traindir=None, validdir=None,
         """
         Encode data using sentencepiece
         """
+        enc_data_path = os.path.join(base_dir, encoded_data_dir)
+        if not os.path.exists(enc_data_path):
+            os.mkdirs(enc_data_path)
+        for data_type, input_data_dir, output_data_dir in data_dirs:
+            if not os.path.exists(output_data_dir):
+                os.mkdirs(output_data_dir)
 
-        for data_type, data_dir in data_dirs:
+        for data_type, in_dir, out_dir in data_dirs:
             src_encoded_file_path = os.path.join(
-                data_dir,
+                out_dir,
                 f"{data_type}.tok.{src_lang}",
             )
             if not os.path.exists(src_encoded_file_path):
                 src_encoded_lines = spm_encoder(
                     spm_src_model_path,
-                    os.path.join(data_dir, f"{data_type}.{src_lang}")
+                    os.path.join(in_dir, f"{data_type}.{src_lang}")
                 )
                 with open(src_encoded_file_path) as wt:
                     wt.write("\n".join(src_encoded_lines))
             tgt_encoded_file_path = os.path.join(
-                data_dir,
+                out_dir,
                 f"{data_type}.tok.{tgt_lang}",
             )
             if not os.path.exists(tgt_encoded_file_path):
                 tgt_encoded_lines = spm_encoder(
                     spm_tgt_model_path,
-                    os.path.join(data_dir, f"{data_type}.{tgt_lang}")
+                    os.path.join(in_dir, f"{data_type}.{tgt_lang}")
                 )
                 with open(tgt_encoded_file_path) as wt:
                     wt.write("\n".join(tgt_encoded_lines))
@@ -90,14 +107,13 @@ def preprocess_data(src_lang, tgt_lang, traindir=None, validdir=None,
         src_lang,
         tgt_lang,
         os.path.join(base_dir, processed_bin),
-        traindir=traindir,
-        validdir=validdir,
-        testdir=testdir)
+        traindir=fseq_train_path,
+        validdir=fseq_valid_path,
+        testdir=fseq_test_path)
 
 
-def train_model(src_lang, tgt_lang, traindir, validdir, testdir,
-                processed_bin="processed", checkpoint_dir="checkpoints", configfile=None,
-                local_checkpoints_save=False):
+def train_model(src_lang, tgt_lang, processed_bin="processed", checkpoint_dir="checkpoints",
+                configfile=None, local_checkpoints_save=False):
     """
     Train fseq model
     """
@@ -137,9 +153,9 @@ def train_model(src_lang, tgt_lang, traindir, validdir, testdir,
 def runall():
     SRC_LANG = "en"
     TGT_LANG = "hi"
-    TRAINDIR = ""
-    VALIDDIR = ""
-    TESTDIR = ""
+    TRAINDIR = "/home/upendra/pp_iitb_data/train"
+    VALIDDIR = "/home/upendra/pp_iitb_data/dev"
+    TESTDIR = "/home/upendra/pp_iitb_data/test"
 
     # Preprocess data
     preprocess_data(
@@ -154,9 +170,6 @@ def runall():
     train_model(
         SRC_LANG,
         TGT_LANG,
-        traindir=TRAINDIR,
-        validdir=VALIDDIR,
-        testdir=TESTDIR,
     )
 
 
