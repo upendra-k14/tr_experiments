@@ -1,0 +1,4 @@
+description: English to Hindi Translation Task (vocab8k)
+exp_name: vocab8k
+src_lang: en
+tgt_lang: hi

@@ -1,0 +1,4 @@
+description: English to Hindi Translation Task
+exp_name: en_hi_exp
+src_lang: en
+tgt_lang: hi
