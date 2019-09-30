@@ -1,6 +1,7 @@
 # Other dirs
 processed/
 checkpoints/
+spm_dir/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

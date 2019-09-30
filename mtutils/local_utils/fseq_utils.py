@@ -1,3 +1,4 @@
+import os, pathlib
 import math
 import random
 
@@ -51,13 +52,14 @@ def fairseq_preprocess(src_lang, tgt_lang, destdir, traindir=None,
             return False
 
     if not preprocessing_done():
+        # TODO : to use FseqArgs
         args = []
         args.append(f"--source-lang={src_lang}")
-        src_dict_path = os.path.join(destdir, f"dict.{src_lang}.txt")
-        args.append(f"--srcdict={src_dict_path}")
+        #src_dict_path = os.path.join(destdir, f"dict.{src_lang}.txt")
+        #args.append(f"--srcdict={src_dict_path}")
         args.append(f"--target-lang={tgt_lang}")
-        tgt_dict_path = os.path.join(destdir, f"dict.{tgt_lang}.txt")
-        args.append(f"--tgtdict={tgt_dict_path}")
+        #tgt_dict_path = os.path.join(destdir, f"dict.{tgt_lang}.txt")
+        #args.append(f"--tgtdict={tgt_dict_path}")
         if traindir:
             args.append(f"--trainpref={traindir}/train.tok")
         if validdir:

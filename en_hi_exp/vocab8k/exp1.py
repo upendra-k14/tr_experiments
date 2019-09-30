@@ -44,8 +44,8 @@ def preprocess_data(src_lang, tgt_lang, traindir=None, validdir=None,
         """
         Init sentencepiece models
         """
-        if not os.path.exists(spm_dir)
-        os.mkdirs(spm_dir)
+        if not os.path.exists(spm_dir):
+            os.makedirs(spm_dir)
         spm_src_lang_model_path = os.path.join(
             spm_dir, f"{src_lang}.{src_vocab_size}.model")
         spm_tgt_lang_model_path = os.path.join(
@@ -69,10 +69,10 @@ def preprocess_data(src_lang, tgt_lang, traindir=None, validdir=None,
         """
         enc_data_path = os.path.join(base_dir, encoded_data_dir)
         if not os.path.exists(enc_data_path):
-            os.mkdirs(enc_data_path)
+            os.makedirs(enc_data_path)
         for data_type, input_data_dir, output_data_dir in data_dirs:
             if not os.path.exists(output_data_dir):
-                os.mkdirs(output_data_dir)
+                os.makedirs(output_data_dir)
 
         for data_type, in_dir, out_dir in data_dirs:
             src_encoded_file_path = os.path.join(
@@ -80,22 +80,26 @@ def preprocess_data(src_lang, tgt_lang, traindir=None, validdir=None,
                 f"{data_type}.tok.{src_lang}",
             )
             if not os.path.exists(src_encoded_file_path):
-                src_encoded_lines = spm_encoder(
+                src_encoded_tokens = spm_encoder(
                     spm_src_model_path,
                     os.path.join(in_dir, f"{data_type}.{src_lang}")
                 )
-                with open(src_encoded_file_path) as wt:
+                src_encoded_lines = (" ".join(x) for x in src_encoded_tokens)
+                print(f"Writing tokenized data to {src_encoded_file_path}")
+                with open(src_encoded_file_path, "w") as wt:
                     wt.write("\n".join(src_encoded_lines))
             tgt_encoded_file_path = os.path.join(
                 out_dir,
                 f"{data_type}.tok.{tgt_lang}",
             )
             if not os.path.exists(tgt_encoded_file_path):
-                tgt_encoded_lines = spm_encoder(
+                tgt_encoded_tokens = spm_encoder(
                     spm_tgt_model_path,
                     os.path.join(in_dir, f"{data_type}.{tgt_lang}")
                 )
-                with open(tgt_encoded_file_path) as wt:
+                tgt_encoded_lines = (" ".join(x) for x in tgt_encoded_tokens)
+                print(f"Writing tokenized data to {tgt_encoded_file_path}")
+                with open(tgt_encoded_file_path, "w") as wt:
                     wt.write("\n".join(tgt_encoded_lines))
 
     print("Init spm models ...")
@@ -124,19 +128,19 @@ def train_model(src_lang, tgt_lang, processed_bin="processed", checkpoint_dir="c
     if local_checkpoints_save:
         checkpoint_dir = os.path.join(base_dir, checkpoint_dir)
         if not os.path.exists(checkpoint_dir):
-            os.mkdirs(checkpoint_dir)
+            os.makedirs(checkpoint_dir)
     else:
         username = getpass.getuser()
         ssd_scratch_dir = os.path.join(
             os.sep, "ssd_scratch", "cvit", username)
         if not os.path.exists(ssd_scratch_dir):
-            os.mkdir(ssd_scratch_dir)
+            os.makedirs(ssd_scratch_dir)
         checkpoint_dir = os.path.join(
             ssd_scratch_dir,
-            os.path.splittext(__file__),
+            os.path.splitext(os.path.abspath(__file__))[0],
             checkpoint_dir)
         if not os.path.exists(checkpoint_dir):
-            os.mkdirs(checkpoint_dir)
+            os.makedirs(checkpoint_dir)
 
     otherargs = {}
     if configfile == None:
