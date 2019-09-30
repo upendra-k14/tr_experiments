@@ -149,7 +149,7 @@ def train_model(src_lang, tgt_lang, processed_bin="processed", checkpoint_dir="c
     fargs = fseq_utils.FseqArgs(
         os.path.join(base_dir, processed_bin),
         **otherargs,
-        save_dir=os.path.join(base_dir, checkpoint_dir),
+        save_dir=checkpoint_dir,
     )
     fairseq_train(fargs.argslist)
 

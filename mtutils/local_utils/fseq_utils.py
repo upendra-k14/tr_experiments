@@ -38,7 +38,7 @@ class FseqArgs():
         return self.args_list
 
 def fairseq_preprocess(src_lang, tgt_lang, destdir, traindir=None,
-    validdir=None, testdir=None):
+    validdir=None, testdir=None, nworkers=5):
     """
     Helper function to do pre-processing using fairseq-preprocess
     """
@@ -67,6 +67,7 @@ def fairseq_preprocess(src_lang, tgt_lang, destdir, traindir=None,
         if testdir:
             args.append(f"--testpref={testdir}/test.tok")
         args.append(f"--destdir={destdir}")
+        args.append(f"--workers={nworkers}")
 
         # fairseq preprocessing argument parser
         parser = options.get_preprocessing_parser()

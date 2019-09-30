@@ -21,7 +21,6 @@ def spm_encoder(spm_model_path, data_file, spm_output_format="piece"):
     sp = spm.SentencePieceProcessor()
     print(f"Loading spm model from {spm_model_path}")
     sp.Load(spm_model_path)
-    lines = open(data_file).readlines()
 
     encoder = sp.EncodeAsPieces
     if spm_output_format == "id":
@@ -29,10 +28,11 @@ def spm_encoder(spm_model_path, data_file, spm_output_format="piece"):
 
     output_lines = []
     #print("Encoding ... ")
-    for line_data in lines:
-        # Remove \n character before encoding
-        encoded_output = encoder(line_data[:-1])
-        yield encoded_output
+    with open(data_file) as dataf:
+        for line_data in dataf:
+            # Remove \n character before encoding
+            encoded_output = encoder(line_data[:-1])
+            yield encoded_output
 
 def spm_decoder(spm_model_path, data_file, spm_input_format="piece"):
     """
@@ -50,7 +50,8 @@ def spm_decoder(spm_model_path, data_file, spm_input_format="piece"):
 
     output_lines = []
     #print("Decoding ...")
-    for line_data in lines:
-        # Remove \n character before decoder
-        decoded_output = decoder(line_data[:-1])
-        yield decoded_output
+    with open(data_file) as dataf:
+        for line_data in lines:
+            # Remove \n character before decoder
+            decoded_output = decoder(line_data[:-1])
+            yield decoded_output
