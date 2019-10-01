@@ -5,6 +5,7 @@ import pathlib
 import argparse
 import yaml
 import getpass
+import subprocess
 
 from local_utils import fseq_utils
 from local_utils.fseq_utils import fairseq_preprocess, fairseq_train
@@ -115,41 +116,67 @@ def preprocess_data(src_lang, tgt_lang, traindir=None, validdir=None,
         validdir=fseq_valid_path,
         testdir=fseq_test_path)
 
+def printlog(verbose=True):
+    if verbose==True:
+        return print
+    else:
+        def notprint(*args, **kwargs):
+            #do nothing
+            pass
+        return notprint
+
 
 def train_model(src_lang, tgt_lang, processed_bin="processed", checkpoint_dir="checkpoints",
-                configfile=None, local_checkpoints_save=False):
+                configfile=None, local_checkpoints_save=False, last_checkpoint_path=None, 
+                printf=printlog(verbose=True)):
     """
     Train fseq model
     """
     print("Training model")
 
     base_dir = pathlib.Path(__file__).stem
+    username = getpass.getuser()
+    ssd_scratch_dir = os.path.join(os.sep, "ssd_scratch", "cvit", username)
+    home_dir = os.path.join(os.sep, "home", username)
+    printf("SSD Scratch dir {}".format(ssd_scratch_dir))
+    chkpt_dir = None
 
-    if local_checkpoints_save:
-        checkpoint_dir = os.path.join(base_dir, checkpoint_dir)
-        if not os.path.exists(checkpoint_dir):
-            os.makedirs(checkpoint_dir)
+    printf("Saving checkpoints locally : {}".format(str(local_checkpoints_save)))
+    if local_checkpoints_save == True:
+        chkpt_dir = os.path.join(base_dir, checkpoint_dir)
+        printf("#Chkpt dir {}".format(chkpt_dir))
+        if not os.path.exists(chkpt_dir):
+            printf("#Creating dir {}".format(chkpt_dir))
+            os.makedirs(chkpt_dir)
     else:
-        username = getpass.getuser()
-        ssd_scratch_dir = os.path.join(
-            os.sep, "ssd_scratch", "cvit", username)
         if not os.path.exists(ssd_scratch_dir):
             os.makedirs(ssd_scratch_dir)
-        checkpoint_dir = os.path.join(
-            ssd_scratch_dir,
+        relative_exp_path = os.path.relpath(
             os.path.splitext(os.path.abspath(__file__))[0],
-            checkpoint_dir)
-        if not os.path.exists(checkpoint_dir):
-            os.makedirs(checkpoint_dir)
+            home_dir,
+        )
+        chkpt_dir = os.path.join(ssd_scratch_dir, relative_exp_path, checkpoint_dir)
+        printf("##Chkpt dir {}".format(chkpt_dir))
+        if not os.path.exists(chkpt_dir):
+            printf("##Creating dir {}".format(chkpt_dir))
+            os.makedirs(chkpt_dir)
 
     otherargs = {}
     if configfile == None:
         configfile = f"{base_dir}.config.yml"
     otherargs = yaml.load(open(configfile))
+    if last_checkpoint_path != None:
+        subprocess.call([
+            "rsync",
+            "-zavh",
+            last_checkpoint_path,
+            os.path.join(chkpt_dir, os.sep),
+        ])
+    print("Checkpoint dir {}".format(chkpt_dir))
     fargs = fseq_utils.FseqArgs(
         os.path.join(base_dir, processed_bin),
         **otherargs,
-        save_dir=checkpoint_dir,
+        save_dir=chkpt_dir,
     )
     fairseq_train(fargs.argslist)
 
@@ -174,6 +201,7 @@ def runall():
     train_model(
         SRC_LANG,
         TGT_LANG,
+        last_checkpoint_path="exp1/checkpoints/checkpoint_last.pt",
     )
 
 

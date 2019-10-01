@@ -1,6 +1,6 @@
 source_lang: "en"
 target_lang: "hi"
-reset_lr_scheduler: True
+#reset_lr_scheduler: True
 arch: "transformer"
 encoder_layers: 6
 decoder_layers: 6
@@ -27,6 +27,6 @@ min_lr: 1e-9
 max_tokens: 4000
 warmup_updates: 8000
 warmup_init_lr: 1e-7
-update_freq: 8
+update_freq: 4
 save_interval: 10
 max_epoch: 200
