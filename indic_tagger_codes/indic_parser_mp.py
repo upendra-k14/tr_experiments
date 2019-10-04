@@ -33,9 +33,9 @@ loghandler.setFormatter(lf)
 logger.addHandler(loghandler)
 
 # number of logical cpus (hyperthreaded)
-N_CPU = mp.cpu_count()
+# N_CPU = mp.cpu_count()
 # number of physical cpus
-# N_CPU = len(os.sched_getaffinity(0))
+N_CPU = len(os.sched_getaffinity(0))
 N_PROCESSES = max(1, N_CPU - 1)
 
 
@@ -97,8 +97,8 @@ def tokenize_data(data_path, lang, forcesave=False):
 
     with codecs.open(tokenized_data_path, "wb") as wt:
         logger.info("Writing data into pickle format")
-        #dataline_str = "\n".join([json.dumps(x) for x in data_tuple])
-        #wt.write(dataline_str)
+        # dataline_str = "\n".join([json.dumps(x) for x in data_tuple])
+        # wt.write(dataline_str)
         pickle.dump(data_tuple, wt, protocol=pickle.HIGHEST_PROTOCOL)
         logger.info("Data written")
 
@@ -132,6 +132,8 @@ def write_anno(filename, X_data, y_data, tag_type):
     Modified code from :
     https://github.com/avineshpvs/indic_tagger/blob/master/tagger/utils/writer.py
     """
+    if tag_type == "parse":
+        tag_type = "chunk"
 
     with codecs.open(filename, "w", encoding='utf8', errors='ignore') as fp:
         data = []
@@ -164,9 +166,10 @@ class LE():
         self.data = data
 
 
-def _get_features(sent_item, tag_type):
+def _get_features(sent_item_list, tag_type):
     try:
-        features = generate_features.sent2features(sent_item.data, tag_type, "crf")
+        features = [generate_features.sent2features(
+            sent_item, tag_type, "crf") for sent_item in sent_item_list.data]
         return features
     except Exception as e:
         traceback.print_exc()
@@ -192,17 +195,25 @@ def batch_predict(args, tag_model_path, chunk_model_path, wt_screen=False):
     mp_n_procs = min(args.max_processes, N_PROCESSES)
     logger.info("N PROCESSES: {}".format(mp_n_procs))
 
+    def get_chunks(sentlist, llen, n_chunks):
+        chk_sz = llen//n_chunks
+        l_indices = np.arange(n_chunks)*chk_sz
+        h_indices = l_indices + chk_sz
+        h_indices[-1] = -1
+        for low, high in zip(l_indices.tolist(), h_indices.tolist()):
+            yield sentlist[low:high]
+
     def mp_get_features(test_sents, bsz, tag_type):
         pool = mp.Pool(processes=mp_n_procs)
         mp_chunk_sz = max(2, bsz//(mp_n_procs + 1))
         # binding tag_type and model_type from outer scope to _get_features func
-        X_test = pool.map(
+        results = pool.imap(
             partial(_get_features, tag_type=tag_type),
-            [LE(x) for x in test_sents],
-            mp_chunk_sz
+            [LE(x) for x in get_chunks(test_sents, bsz, mp_n_procs)],
         )
-        pool.close()
-        pool.join()
+        X_test = []
+        for result_chunks in results:
+            X_test.extend(result_chunks)
         return X_test
     ############################################################################
 
@@ -241,10 +252,11 @@ def batch_predict(args, tag_model_path, chunk_model_path, wt_screen=False):
                 test_sents_pos = generate_features.append_tags(
                     test_sents, "pos", y_pos)
                 X_test = mp_get_features(test_sents_pos, bsz, "chunk")
+                y_pred = chunker.predict(X_test)
             else:
-                #print("Batch f {}".format(i))
+                # print("Batch f {}".format(i))
                 X_test = mp_get_features(test_sents, bsz, args.tag_type)
-                #print("Batch p {}".format(i))
+                # print("Batch p {}".format(i))
                 y_pred = crf_tagger.predict(X_test)
             progress_bar.update(1)
 

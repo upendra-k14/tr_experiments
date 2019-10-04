@@ -21,8 +21,8 @@ import os
 import re
 import numpy as np
 import traceback
+import ray
 sys.path.append(path.dirname(path.abspath(__file__)))
-
 
 LOGFORMAT = "{asctime}: {levelname}: {funcName:15s}: {message}"
 logger = logging.getLogger(__name__)
@@ -33,11 +33,11 @@ loghandler.setFormatter(lf)
 logger.addHandler(loghandler)
 
 # number of logical cpus (hyperthreaded)
-N_CPU = mp.cpu_count()
+# N_CPU = mp.cpu_count()
 # number of physical cpus
-# N_CPU = len(os.sched_getaffinity(0))
+N_CPU = len(os.sched_getaffinity(0))
 N_PROCESSES = max(1, N_CPU - 1)
-
+ray.init(num_cpus=N_PROCESSES)
 
 def get_args():
     """
@@ -163,10 +163,10 @@ class LE():
     def __init__(self, data):
         self.data = data
 
-
-def _get_features(sent_item, tag_type):
+@ray.remote
+def get_features(sent_item, tag_type):
     try:
-        features = generate_features.sent2features(sent_item.data, tag_type, "crf")
+        features = generate_features.sent2features(sent_item, tag_type, "crf")
         return features
     except Exception as e:
         traceback.print_exc()
@@ -190,20 +190,7 @@ def batch_predict(args, tag_model_path, chunk_model_path, wt_screen=False):
     # Helper funcs for multiprocessing
     ############################################################################
     mp_n_procs = min(args.max_processes, N_PROCESSES)
-    logger.info("N PROCESSES: {}".format(mp_n_procs))
-
-    def mp_get_features(test_sents, bsz, tag_type):
-        pool = mp.Pool(processes=mp_n_procs)
-        mp_chunk_sz = max(2, bsz//(mp_n_procs + 1))
-        # binding tag_type and model_type from outer scope to _get_features func
-        X_test = pool.map(
-            partial(_get_features, tag_type=tag_type),
-            [LE(x) for x in test_sents],
-            mp_chunk_sz
-        )
-        pool.close()
-        pool.join()
-        return X_test
+    # logger.info("N PROCESSES: {}".format(mp_n_procs))
     ############################################################################
 
     all_test_sents = []
@@ -236,14 +223,16 @@ def batch_predict(args, tag_model_path, chunk_model_path, wt_screen=False):
         for i, (test_sents, bsz) in enumerate(batch_iterator(tk_data_path, batch_size, n_sents)):
             y_pred = None
             if args.tag_type == "parse":
-                X_test = mp_get_features(test_sents, bsz, "pos")
+                rlist = [get_features.remote(sent, "pos") for sent in test_sents]
+                X_test = ray.get(rlist)
                 y_pos = tagger.predict(X_test)
                 test_sents_pos = generate_features.append_tags(
                     test_sents, "pos", y_pos)
-                X_test = mp_get_features(test_sents_pos, bsz, "chunk")
+                # X_test = mp_get_features(test_sents_pos, bsz, "chunk")
             else:
                 #print("Batch f {}".format(i))
-                X_test = mp_get_features(test_sents, bsz, args.tag_type)
+                rlist = [get_features.remote(sent, args.tag_type) for sent in test_sents]
+                X_test = ray.get(rlist)
                 #print("Batch p {}".format(i))
                 y_pred = crf_tagger.predict(X_test)
             progress_bar.update(1)
