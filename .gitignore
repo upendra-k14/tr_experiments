@@ -2,6 +2,8 @@
 processed/
 checkpoints/
 spm_dir/
+exp*/
+*modelsdata/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
